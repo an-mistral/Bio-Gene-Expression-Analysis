@@ -2,7 +2,7 @@
 
 ## Project Overview
 Breast cancer is a heterogeneous disease comprising multiple molecular subtypes. One aggressive subtype is HER2-positive cancer, characterized by 
-amplification of the ERBB2 (HER2) oncogene and accounting for roughly 11–30% of cases. This project compares RNA-seq profiles of HER2-amplified 
+amplification of the human epidermal growth factor receptor 2 (HER2/ERBB2) oncogene and accounting for roughly 11–30% of cases. This project compares RNA-seq profiles of HER2-amplified 
 versus non-amplified breast tumors to identify differentially expressed genes (DEGs), key pathways, and potential clinical 
 biomarkers. The aim is to elucidate HER2-driven molecular mechanisms and their clinical significance. In particular, we seek DEGs and enriched 
 pathways that distinguish HER2+ tumors and may suggest targets for therapy or prognosis.
@@ -20,29 +20,30 @@ pathways that distinguish HER2+ tumors and may suggest targets for therapy or pr
 
 ## Data Description
 Data were obtained from the cBioPortal for Cancer Genomics, specifically the [TCGA Breast Invasive Carcinoma (BRCA) PanCancer Atlas 2018 dataset](https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018). 
-Three data types were used:
-- RNA-Seq gene expression (mRNA-seq counts) for tumor samples.
-- Copy number variation (CNV) data to identify HER2 (ERBB2) amplification status.
-- Clinical data including patient identifiers, survival outcomes, and other covariates.
-These datasets together allow classification of tumors by HER2 amplification (via CNV) and correlation of gene expression with clinical outcomes.
+Three data modalities were used:
+- RNA-seq–derived gene-level mRNA expression (RSEM-normalized estimates) for breast tumor samples.
+- Copy-number alteration (CNA) data to identify HER2 (ERBB2) amplification status.
+- Clinical data: patient identifiers and overall survival fields (survival status and time-to-event in months).
 
 ## Analysis Workflow
-The analysis was conducted in R, using established Bioconductor and CRAN packages. 
+The analysis was conducted in R (v4.4.2), using established Bioconductor and CRAN packages. 
 The pipeline included the following steps:
-- **Data Acquisition:** RNA-seq expression, copy-number and clinical data for TCGA Breast Invasive Carcinoma (PanCancer Atlas 2018) were downloaded via cBioPortal. Patient identifiers were matched across datasets, and HER2 (ERBB2) amplification status was assigned based on copy-number values (amplified vs non-amplified).
-- **Preprocessing:** Gene expression counts were assembled into a samples-by-genes matrix and appropriately rounded/filtered for analysis. Metadata was constructed to map each sample to its HER2 status.
-- **Differential Expression Analysis:** I used the DESeq2 package (R/Bioconductor) to normalize the count data and test for differentially expressed genes (DEGs) between HER2-amplified and non-amplified tumors.
-- **Visualization:** An EnhancedVolcano plot was generated to display log₂ fold-changes versus adjusted p-values, highlighting significant DEGs. Principal Component Analysis (PCA) was performed (using ggplot2) to examine sample variance and separation by HER2 status. A heatmap (pheatmap) of the top DEGs was created to visualize expression patterns and clustering across samples.
+- **Data Acquisition & Preprocessing:** RNA-seq expression, CNA and clinical data for TCGA Breast Invasive Carcinoma were downloaded via cBioPortal. Patient/sample identifiers were standardized to a common TCGA barcode format and intersected across modalities to ensure consistent cohort alignment. HER2 (ERBB2) amplification status was assigned based on copy-number alterations values (amplified vs non-amplified). Gene expression counts were assembled into a samples-by-genes matrix and appropriately rounded/filtered for analysis. Metadata was constructed to map each sample to its HER2 status.
+- **Expression preprocessing:** Gene-level RNA-seq expression (RSEM-derived estimates) was converted to a DESeq2-compatible integer matrix by rounding. Negative values (if present) were set to zero. Lowly expressed genes were filtered to reduce noise and improve statistical power.
+- **Differential Expression Analysis:** Differential expression testing was performed with DESeq2, including library-size normalization and Wald testing. Significance was assessed using Benjamini–Hochberg adjusted p-values. Results were summarized with:
+  - **Volcano plot** (EnhancedVolcano) showing log₂ fold-change vs adjusted p-value.
+  - **PCA** (ggplot2) on variance-stabilized expression to visualize global separation by HER2 status.
+  - **Heatmap** (pheatmap) of top DEGs to highlight expression patterns and sample clustering.
 - **Pathway Enrichment:** Enriched biological pathways among the up- and down-regulated DEGs were identified using ReactomePA and clusterProfiler (with human gene annotations). Enrichment results were visualized with dotplots and tree plots (enrichplot) and mapped onto pathway diagrams using Pathview.
-- **Survival Analysis:** A LASSO-regularized Cox regression model was built (glmnet) on the variance-stabilized expression of DEGs to create a prognostic signature. Patients were stratified into high-risk and low-risk groups based on the median prognostic score, and Kaplan–Meier survival curves were plotted (survival/survminer) to compare outcomes between the risk groups.
+- **Survival Analysis:** A Lasso-regularized Cox regression model was built (glmnet) on the variance-stabilized expression of DEGs to create a prognostic signature. Patients were stratified into high-risk and low-risk groups based on the median prognostic score, and Kaplan–Meier survival curves were plotted (survival/survminer) to compare outcomes between the risk groups.
 
 ## Results Summary
-
-- **Key Differential Genes:** A total of ~18,600 genes were tested; DESeq2 analysis confirmed strong overexpression of ERBB2 in the HER2-amplified group, as expected. Notably, SPANXA2 (a cancer/testis antigen) was among the most upregulated genes (~20-fold increase). In contrast, genes like CSN2 (casein beta) were highly downregulated in HER2+ tumors, reflecting loss of normal breast epithelial function.
-- **Pathway Enrichment:** Upregulated DEGs in HER2-amplified tumors were significantly enriched in cell cycle and DNA replication pathways, consistent with increased proliferation. Downregulated DEGs were enriched in translation and protein synthesis pathways (e.g., peptide elongation, nonsense-mediated decay), indicating reduced protein synthesis activity in the HER2+ group.
-- **PCA Findings:** The first two principal components captured about 28% of the total variance (PC1 ~20%, PC2 ~8%). The PCA showed a tendency for HER2-amplified samples to separate from non-amplified ones along PC1 (driven by genes like ERBB2, CDC6), although there was some overlap between groups.
+- **Key DEGs:** A total of ~18,600 genes were tested; DESeq2 analysis confirmed strong overexpression of ERBB2 in the HER2-amplified group, as expected. Notably, SPANXA2 (a cancer/testis antigen) was among the most upregulated genes (~8-20x increase) and GAGE12D, which are implicated in cell proliferation and immune evasion. Conversely, genes such as CSN2, CSN3, and LALBA showed strong downregulation (~21x and ~13x reduction), consistent with loss of epithelial/milk-producing phenotype in aggressive HER2+ tumors. 
+- **Pathway Enrichment:** Upregulated DEGs in HER2-amplified tumors were significantly enriched in cell cycle and DNA replication pathways, consistent with increased proliferation. Downregulated DEGs were enriched in translation and mRNA surveillance pathways (e.g., peptide elongation, nonsense-mediated decay), indicating reduced protein synthesis activity and quality control in the HER2+ group.
+- **PCA Findings:** The first two principal components captured about 28% of the total variance (PC1 ~20%, PC2 ~8%). The components explain a significant part of the variation in the data, reflecting molecular differ- ences between HER2-amplified and non-amplified tumours, which confirms the role of HER2 in the formation of the tumour phenotype. However, it also highlights the complexity of the data and the influence of additional biological factors.
 - **Heatmap Clustering:** The expression heatmap of top DEGs revealed distinct clustering by HER2 status. HER2-amplified samples formed one cluster characterized by high expression of known amplicon genes (ERBB2, GRB7, STARD3) and cell-cycle regulators (CDK12, CDC6). Non-amplified samples formed a separate cluster with lower expression of those genes.
-- **Survival Stratification:** The LASSO-Cox model stratified patients into “high-risk” and “low-risk” groups with significantly different survival outcomes (log-rank p<0.0001). High-risk patients (with elevated expression of the signature genes) had substantially poorer overall survival, demonstrating the prognostic value of the gene-expression signature.
+- **Survival Stratification:** 
+Survival analysis demonstrated a correlation between gene expression profiles and clinical outcomes of patients (log-rank p<0.0001). Cox regression model with Lasso regularization identified gene sets associated with high- and low-risk groups, highlighting the prognostic value of molecular markers and the need for targeted therapy and personalized treatment strategies.
 
 ## Target Audience
 This work is intended for researchers in computational biology, cancer genomics, and related fields. It will be most useful to bioinformaticians 
